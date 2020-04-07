@@ -1,0 +1,25 @@
+Done loading data
+Done loading knn graph
+Running nonlinear diffusion for class = 0
+Running nonlinear diffusion for class = 1
+Running nonlinear diffusion for class = 2
+Running nonlinear diffusion for class = 0
+Running nonlinear diffusion for class = 1
+Running nonlinear diffusion for class = 2
+Running nonlinear diffusion for class = 0
+Running nonlinear diffusion for class = 1
+Running nonlinear diffusion for class = 2
+Running nonlinear diffusion for class = 0
+Running nonlinear diffusion for class = 1
+Running nonlinear diffusion for class = 2
+Running nonlinear diffusion for class = 0
+Running nonlinear diffusion for class = 1
+Running nonlinear diffusion for class = 2
+Running nonlinear diffusion for class = 0
+Running nonlinear diffusion for class = 1
+Running nonlinear diffusion for class = 2
+Done calculating the diffusions
+accuracy = 73.0000
+
+accuracy = 56.2000
+
