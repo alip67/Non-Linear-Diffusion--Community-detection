@@ -237,6 +237,8 @@ def read_parameters():
                         help='whether to use rank based rounding.')
     parser.add_argument('--self_learning', type=int, default=0,
                         help='whether to use self learning or not.')
+    parser.add_argument('--number_of_samples_per_label', type=int, default=2,
+                        help='the number of the seeds that we pick to create the embedding based onthe difussion values')
     return parser
 
 

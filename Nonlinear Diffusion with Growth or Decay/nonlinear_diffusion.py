@@ -1,5 +1,7 @@
 import numpy as np
 import networkx as nx
+import random
+
 
 
 def calculate_nonlinear_diffusion(idx_train, labels, t, h, p, L, pinvD, n, nclass, nnlinear_function):
@@ -20,6 +22,35 @@ def calculate_nonlinear_diffusion(idx_train, labels, t, h, p, L, pinvD, n, nclas
         train_j_class = j
         preds[train_j_class, :] = np.maximum(preds[train_j_class, :], u)
     return preds
+
+
+def calculate_nonlinear_diffusion_embeddings(idx_train, labels, t, h, p, L, n, nclass, nnlinear_function,
+                                             numSamplesPerLabels, dataset):
+    # create the matrix for saving the result the number of rows is the number of the samples we pick times the the number of labels
+    # so we can say that each row of this class is a diffusion vector for each of the seeds, finally we return the transpose of this matrix which is the embedding of the matrix
+    preds = np.zeros(( numSamplesPerLabels * nclass, n)).astype(float)
+    # Start diffusion
+    labels_train = labels[idx_train]  #Fetch the labels for the train indexes
+    embedd_train_index = []
+    # we pick number of Samples Per Label with variable (numSamplesPerLabels) in this loop and also save the indexes of the samples that we picked
+    for j in range(0, nclass):
+        indexes = [idx_train[i] for i, x in enumerate(labels_train) if x == j]
+        sampled_list = random.sample(indexes, numSamplesPerLabels)
+        embedd_train_index.extend(sampled_list)
+        # for each of the seeds that we pick by random from this specific label we start the diffusion and at  the end of the loop we save the diffusion vector for each of the seeds in the (preds) matrix
+        for k in range(0, len(sampled_list)):
+            u = np.zeros(n)
+            u[sampled_list[k]] = 1.0
+            for tt in range(0, t):
+                if nnlinear_function == "power":
+                    u = u - h * np.dot(L, np.power(u, p))
+                    u[u < 0] = 0.0
+                    u[u > 1] = 1.0
+                if nnlinear_function == "tanh":
+                    u = u - h * np.dot(L, np.tanh(u))
+            preds[j * numSamplesPerLabels + k, :] = np.maximum(preds[j * numSamplesPerLabels + k, :], u)
+
+    return embedd_train_index, np.transpose(preds) # finally we return the transpose of the preds which is our embedding and the indicies for the seeds
 
 
 # def find_edges(G):
@@ -45,9 +76,10 @@ def CalculateDiffusionGraph(B, nclass, diffusions):
         result[i] = B
     return result
 
+
 def CalculateSSPTree(idx_train, labels, nclass, B):
     labels_train = labels[idx_train]
-    rank_result = [None]*nclass
+    rank_result = [None] * nclass
     weight_result = [None] * nclass
     for j in range(0, nclass):
         indexes = [idx_train[i] for i, x in enumerate(labels_train) if x == j]
@@ -60,28 +92,29 @@ def CalculateSSPTree(idx_train, labels, nclass, B):
             level = {k: len(v) - 1 for k, v in path.items()}
             if len(dict_l) == 0:
                 dict_l = level
-                dict_w=length
+                dict_w = length
             else:
                 for k, v in level.items():
-                     if k in dict_l:
+                    if k in dict_l:
                         if dict_l[k] > v:
                             dict_l[k] = v
                             dict_w[k] = length[k]
 
                         if dict_l[k] == v:
                             if dict_w[k] > length[k]:
-                                dict_w[k]=length[k]
+                                dict_w[k] = length[k]
 
                 # dict_l = {k: min(v, dict_l[k]) for k, v in level.items() if k in dict_l}
         rank_result[j] = dict_l
         weight_result[j] = dict_w
-    return rank_result,weight_result
+    return rank_result, weight_result
 
-def find_Min_rank(rank_dicts,weight_dicts):
+
+def find_Min_rank(rank_dicts, weight_dicts):
     # G = nx.from_numpy_matrix(G)
     # nodes = list(G.nodes)
     result = {}
-    weight={}
+    weight = {}
 
     for i in range(0, len(rank_dicts)):
         for k, v in rank_dicts[i].items():
@@ -89,15 +122,16 @@ def find_Min_rank(rank_dicts,weight_dicts):
                 if result[k][0] > v:
                     result[k] = (v, i)
                     weight[k] = weight_dicts[i][k]
-                if result[k][0]==v:
-                    if weight_dicts[i][k]< weight[k]:
+                if result[k][0] == v:
+                    if weight_dicts[i][k] < weight[k]:
                         result[k] = (v, i)
                         weight[k] = weight_dicts[i][k]
             else:
                 result[k] = (v, i)
-                weight[k]=weight_dicts[i][k]
+                weight[k] = weight_dicts[i][k]
 
     return result
+
 
 def Process_Result(result):
     # sorted(results.items(), key = lambda kv: (kv[1], kv[0]))
@@ -106,13 +140,7 @@ def Process_Result(result):
     for i in sorted(result):
         rank_sorted.append(result[i][0])
         labels_sorted.append(result[i][1])
-    return rank_sorted,labels_sorted
-
-
-
-
-
-
+    return rank_sorted, labels_sorted
 
 
 def calculate_nonlinear_diffusion_treeBased(idx_train, labels, t, h, p, L, pinvD, n, nclass, G, nnlinear_function):

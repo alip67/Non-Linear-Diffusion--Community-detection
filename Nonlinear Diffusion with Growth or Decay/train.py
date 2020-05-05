@@ -1,11 +1,12 @@
 import argparse
 import numpy as np
 import random
+import scipy.io as sio
 # import matlab.engine
 
 from utils import read_parameters, load_data, calculate_normalized_laplacian, calculate_quality_measures
-from nonlinear_diffusion import calculate_nonlinear_diffusion, calculate_two_nonlinear_diffusions, self_learning, CalculateDiffusionGraph, CalculateSSPTree, find_Min_rank, Process_Result
-import networkx as nx
+from nonlinear_diffusion import calculate_nonlinear_diffusion, calculate_two_nonlinear_diffusions, self_learning, CalculateDiffusionGraph, CalculateSSPTree, find_Min_rank, Process_Result, calculate_nonlinear_diffusion_embeddings
+from predict import predict_cv, predict_cv_fixed
 
 from sklearn.neighbors import KDTree
 import matplotlib.pyplot as plt
@@ -50,33 +51,47 @@ if args.generate_knn == 1:
     G = np.dot(np.dot(dsqrt, G), dsqrt);
     np.save('G_' + args.dataset + '_k_' + str(args.knighbors_number) + '_rad_' + str(args.rad) + '.npy', G);
 else:
-    print("Done loading knn graph")
+    # print("Done loading knn graph")
     G = np.load('G_' + args.dataset + '_k_' + str(args.knighbors_number) + '_rad_' + str(args.rad) + '.npy');
+    print("Done loading knn graph")
+
 
 [n, nclass] = labels.shape
 if args.use_two_diffusions == 0:
+    G = args.w * G + (1.0 - args.w) * adj.A
+    GG = np.dot(G, G)
+    G = G + GG
+    # sio.savemat('raw' + args.dataset + '.mat', {'network': G})
     B = adj.A
     B = B.astype(float)
-    G = args.w * G + (1.0 - args.w) * adj.A
-    # GG = np.dot(G, G)
-    # G = G + GG
-    load_data = False
+    load_data = True
     y = np.argmax(labels, 1)
     if load_data == True:
         L = np.load('L_' + args.dataset + 'Normalized laplacian' + '.npy')
+        print("Done loading Normalized laplacian")
         pinvD = np.load('pinVD_' + args.dataset + 'PinVD' + '.npy')
+        print("Done loading PinVD")
         preds = np.load('Preds_' + args.dataset + 'Preds' + '.npy')
+        print("Done loading Preds")
+        labelsMatrix = labels.copy()
+        labelsMatrix[len(idx_train):labelsMatrix.shape[0], :] = 0
+        embedd_index,preds_embedding = calculate_nonlinear_diffusion_embeddings(idx_train, y, args.t, args.h, args.p1, L, n, nclass, args.function, args.number_of_samples_per_label, args.dataset)
+        sio.savemat('all_labels'+'_'+args.dataset+'_'+str(args.number_of_samples_per_label*nclass) +'_'+'dim'+ '.mat', {'network': preds_embedding, 'lables': labels, 'train_indexes': embedd_index, 'test_indexes': idx_test})
     else:
         L, pinvD = calculate_normalized_laplacian(G)
         preds = calculate_nonlinear_diffusion(idx_train, y, args.t, args.h, args.p1, L, pinvD, n, nclass, args.function)
+        labelsMatrix = labels.copy()
+        labelsMatrix[len(idx_train):labelsMatrix.shape[0], :] = 0
+        embedd_index,preds_embedding = calculate_nonlinear_diffusion_embeddings(idx_train, y, args.t, args.h, args.p1, L, n, nclass, args.function, args.number_of_samples_per_label, args.dataset)
+        sio.savemat('all_labels'+'_'+args.dataset+'_'+str(args.number_of_samples_per_label*nclass) +'_'+'dim'+ '.mat', {'network': preds_embedding, 'lables': labels, 'train_indexes': embedd_index, 'test_indexes': idx_test})
         np.save('L_' + args.dataset + 'Normalized laplacian' + '.npy', L)
         np.save('pinVD_' + args.dataset + 'PinVD' + '.npy', pinvD)
         np.save('Preds_' + args.dataset + 'Preds' + '.npy', preds)
 
-    C = CalculateDiffusionGraph(B, nclass,preds)
-    SSSP_Rank,SSSP_Weight = CalculateSSPTree(idx_train, y, nclass,C)
-    DicOfRanks = find_Min_rank(SSSP_Rank,SSSP_Weight)
-    result = Process_Result(DicOfRanks)
+    # C = CalculateDiffusionGraph(B, nclass,preds)
+    # SSSP_Rank,SSSP_Weight = CalculateSSPTree(idx_train, y, nclass,C)
+    # DicOfRanks = find_Min_rank(SSSP_Rank,SSSP_Weight)
+    # result = Process_Result(DicOfRanks)
 
 else:
     LF, pinvDF = calculate_normalized_laplacian(G)
