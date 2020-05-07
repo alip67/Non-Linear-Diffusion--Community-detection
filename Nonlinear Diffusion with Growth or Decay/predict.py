@@ -154,8 +154,8 @@ def read_parameters():
                         help="The number of re-shuffling & splitting for each train ratio.")
     parser.add_argument("--train-test-indices", type=str, default=None,
                         help='variable name of indices used for training/testing inside a .mat file.')
-    parser.add_argument('--dimenssion', type=int, default=6,
-                        help='Embedding Dimenssion')
+    parser.add_argument('--dimension', type=int, default=6,
+                        help='Embedding Dimension')
     return parser
 
 def test_embedding():
@@ -191,18 +191,18 @@ if __name__ == "__main__":
     ###############################################
     #Loading the labels matrix
 
-    logger.info("Loading label from %s...", args.label+str(args.dimenssion)+'_dim.mat')
+    logger.info("Loading label from %s...", args.label+str(args.dimension)+'_dim.mat')
 
     label = load_label(
-        file= args.label+str(args.dimenssion)+'_dim.mat', variable_name=args.matfile_variable_name)
+        file= args.label+str(args.dimension)+'_dim.mat', variable_name=args.matfile_variable_name)
     logger.info("Label loaded!")
 
     ###############################################
     #Loading the embedding matrix
 
-    logger.info("Loading network embedding from %s...", args.label+str(args.dimenssion)+'_dim.mat')
+    logger.info("Loading network embedding from %s...", args.label+str(args.dimension)+'_dim.mat')
     THIS_FOLDER = os.path.dirname(os.path.abspath(__file__))
-    my_file = os.path.join(THIS_FOLDER, args.label + str(args.dimenssion) + '_dim.mat')
+    my_file = os.path.join(THIS_FOLDER, args.label + str(args.dimension) + '_dim.mat')
     data = scipy.io.loadmat(my_file)
     logger.info("loading mat file %s", args.label + str(args.dimenssion) + '_dim.mat')
     embedding = data['network']
@@ -218,7 +218,7 @@ if __name__ == "__main__":
 
     avg_micro, avg_macro, train_ratio = predict_cv_fixed(embedding, label, train_indices[0], test_indices[0])
     THIS_FOLDER = os.path.dirname(os.path.abspath(__file__))
-    my_file = os.path.join(THIS_FOLDER, 'ami_' + args.dataset + '_fixed_' + str(args.dimenssion) + '.mat')
+    my_file = os.path.join(THIS_FOLDER, 'ami_' + args.dataset + '_fixed_' + str(args.dimension) + '.mat')
     scipy.io.savemat(my_file, {'ami': avg_micro, 'ama': avg_macro, 'tr': train_ratio})
 
 
@@ -243,6 +243,6 @@ if __name__ == "__main__":
         trs.append(train_ratio)
 
     THIS_FOLDER = os.path.dirname(os.path.abspath(__file__))
-    my_file = os.path.join(THIS_FOLDER, 'ami_'+args.dataset+'_NotFixed_'+str(args.dimenssion)+'.mat')
+    my_file = os.path.join(THIS_FOLDER, 'ami_'+args.dataset+'_NotFixed_'+str(args.dimension)+'.mat')
     scipy.io.savemat(my_file, {'ami': avg_micros, 'ama': avg_macros, 'tr': trs})  # instnt of average micro
 

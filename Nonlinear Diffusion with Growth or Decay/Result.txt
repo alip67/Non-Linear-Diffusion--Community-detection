@@ -1,3 +1,8 @@
+##########################################################################################
+
+These are the results when we  use the training ratios
+
+
 ##################################################
 resualt for 6 Dim
 
@@ -29,7 +34,7 @@ tr  = 1.00922131147541	1.98096617358022	2.97158972216419	3.98164750553739	5.0173
 
 ##########################################################################################
 
-These are the results whn we just use the fixed training indexes and test indexes
+These are the results when we just use the fixed training indexes and test indexes
 
 
 ##################################################
