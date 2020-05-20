@@ -11,7 +11,9 @@ from sklearn.model_selection import ShuffleSplit
 from sklearn.multiclass import OneVsRestClassifier
 from sklearn.metrics import f1_score
 from sklearn.exceptions import UndefinedMetricWarning
+from sklearn.preprocessing import normalize
 import warnings
+import random
 warnings.filterwarnings("ignore", category=UserWarning)
 warnings.filterwarnings("ignore", category=UndefinedMetricWarning)
 
@@ -158,16 +160,6 @@ def read_parameters():
                         help='Embedding Dimension')
     return parser
 
-def test_embedding():
-    embedding_test = [[0, 1, 0, 0, 0, 0, 0],[0, 0, 0, 0, 0, 0, 1],[0, 0, 0, 1, 0, 0, 0],[0, 1, 0, 0, 0, 0, 0],[0, 0, 0, 0, 0, 0, 1],[0, 0, 0, 0, 0, 0, 1],[0, 0, 0, 1, 0, 0, 0],
-                      [0, 1, 0, 0, 0, 0, 0],[0, 0, 0, 0, 0, 0, 1],[0, 1, 0, 0, 0, 0, 0],[0, 0, 0, 0, 0, 0, 1],[0, 0, 0, 1, 0, 0, 0],[0, 1, 0, 0, 0, 0, 0],[0, 0, 0, 0, 0, 0, 1],
-                      [0, 0, 0, 0, 0, 0, 1],[0, 0, 0, 1, 0, 0, 0],[0, 1, 0, 0, 0, 0, 0],[0, 0, 0, 0, 0, 0, 1],[0, 1, 0, 0, 0, 0, 0]]
-    embedding_test = sparse.csr_matrix(np.asarray(embedding_test)).todense().astype(np.int)
-    label_test = [[0, 1, 0],[1, 0, 0],[0, 0, 1],[0, 1, 0],[1, 0, 0],[1, 0, 0],[0, 0, 1],[0, 1, 0],[1, 0, 0],[0, 1, 0],[1, 0, 0],[0, 0, 1],[0, 1, 0],[1, 0, 0],[1, 0, 0],[0, 0, 1],
-                  [0, 1, 0],[1, 0, 0],[0, 1, 0]]
-    label_test = sparse.csr_matrix(np.asarray(label_test)).todense().astype(np.int)
-    avg_micro, avg_macro, train_ratio = predict_cv_fixed(embedding_test, embedding_test, [0,1,2,3,4,5,6,7,8,9,10,11],
-                                                         [12,13,14,15,16,17,18])
 
 if __name__ == "__main__":
     # Parsing the parametres of the input
@@ -204,8 +196,16 @@ if __name__ == "__main__":
     THIS_FOLDER = os.path.dirname(os.path.abspath(__file__))
     my_file = os.path.join(THIS_FOLDER, args.label + str(args.dimension) + '_dim.mat')
     data = scipy.io.loadmat(my_file)
-    logger.info("loading mat file %s", args.label + str(args.dimenssion) + '_dim.mat')
+    logger.info("loading mat file %s", args.label + str(args.dimension) + '_dim.mat')
     embedding = data['network']
+    embedding_artificial = embedding.copy()
+    # embedding = random.uniform(0, 1)
+    # embedding = np.random(random.uniform(0,1), size=(19717,6))
+    random_matrix_array = np.random.rand(19717, 6)
+
+    normed_embedding = normalize(embedding, axis=1, norm='l2')
+
+
     logger.info("Network embedding loaded!")
 
     ###################################################
@@ -216,9 +216,9 @@ if __name__ == "__main__":
     ###################################################
     # calling the liblinear with the fixed training and testing labels
 
-    avg_micro, avg_macro, train_ratio = predict_cv_fixed(embedding, label, train_indices[0], test_indices[0])
+    avg_micro, avg_macro, train_ratio = predict_cv_fixed(normed_embedding, label, train_indices[0], test_indices[0])
     THIS_FOLDER = os.path.dirname(os.path.abspath(__file__))
-    my_file = os.path.join(THIS_FOLDER, 'ami_' + args.dataset + '_fixed_' + str(args.dimension) + '.mat')
+    my_file = os.path.join(THIS_FOLDER, 'ami_normalized_' + args.dataset + '_fixed_' + str(args.dimension) + '.mat')
     scipy.io.savemat(my_file, {'ami': avg_micro, 'ama': avg_macro, 'tr': train_ratio})
 
 
@@ -237,12 +237,12 @@ if __name__ == "__main__":
     # calling the liblinear based on the amount of train_ratios
     for tr in train_ratios:
 
-        avg_micro, avg_macro, train_ratio = predict_cv(embedding, label, train_ratio=tr/100., n_splits=args.num_split, C=args.C, random_state=args.seed)
+        avg_micro, avg_macro, train_ratio = predict_cv(normed_embedding, label, train_ratio=tr/100., n_splits=args.num_split, C=args.C, random_state=args.seed)
         avg_micros.append(avg_micro)
         avg_macros.append(avg_macro)
         trs.append(train_ratio)
 
     THIS_FOLDER = os.path.dirname(os.path.abspath(__file__))
-    my_file = os.path.join(THIS_FOLDER, 'ami_'+args.dataset+'_NotFixed_'+str(args.dimension)+'.mat')
+    my_file = os.path.join(THIS_FOLDER, 'ami_normalized_'+args.dataset+'_NotFixed_'+str(args.dimension)+'.mat')
     scipy.io.savemat(my_file, {'ami': avg_micros, 'ama': avg_macros, 'tr': trs})  # instnt of average micro
 
