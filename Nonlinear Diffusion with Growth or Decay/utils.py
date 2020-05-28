@@ -239,6 +239,8 @@ def read_parameters():
                         help='whether to use self learning or not.')
     parser.add_argument('--number_of_samples_per_label', type=int, default=2,
                         help='the number of the seeds that we pick to create the embedding based onthe difussion values')
+    parser.add_argument('--load_data', type=int, default=0,
+                        help='whether to load data or not')
     return parser
 
 

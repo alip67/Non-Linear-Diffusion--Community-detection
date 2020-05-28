@@ -1,6 +1,7 @@
 import numpy as np
 import networkx as nx
 import random
+from tqdm import tqdm
 
 
 
@@ -33,7 +34,7 @@ def calculate_nonlinear_diffusion_embeddings(idx_train, labels, t, h, p, L, n, n
     labels_train = labels[idx_train]  #Fetch the labels for the train indexes
     embedd_train_index = []
     # we pick number of Samples Per Label with variable (numSamplesPerLabels) in this loop and also save the indexes of the samples that we picked
-    for j in range(0, nclass):
+    for j in tqdm(range(0, nclass)):
         indexes = [idx_train[i] for i, x in enumerate(labels_train) if x == j]
         sampled_list = random.sample(indexes, numSamplesPerLabels)
         embedd_train_index.extend(sampled_list)
@@ -52,32 +53,52 @@ def calculate_nonlinear_diffusion_embeddings(idx_train, labels, t, h, p, L, n, n
 
     return embedd_train_index, np.transpose(preds) # finally we return the transpose of the preds which is our embedding and the indicies for the seeds
 
-
-# def find_edges(G):
-#     edges = []
-#     for i in range(len(G)):
-#         for j in range(len(G[0])):
-#             if (G[i][j] == 1):
-#                  edges.append((i, j))
-#     return edges
-
-
 def CalculateDiffusionGraph(B, nclass, diffusions):
     result = [None] * nclass
+    adjMatrix = B.copy()
     x = np.transpose(np.nonzero(B))
     for i in range(0, nclass):
         diffusion_Vector = diffusions[i, :]
-        for j in range(len(x)):
+        for j in tqdm(range(len(x))):
             tempValue = np.abs(diffusion_Vector[x[j][0]] - diffusion_Vector[x[j][1]])
             if tempValue == 0:
-                B[x[i][0]][x[i][0]] = 0.00000000000000000000000000000001
+                B[x[j][0]][x[j][1]] = 0.00000000000000000000000000000001
             else:
-                B[x[i][0]][x[i][1]] = tempValue
+                B[x[j][0]][x[j][1]] = tempValue
         result[i] = B
-    return result
+        B = adjMatrix.copy()
+    return B, result
 
+def Calculate_Embedding_Based_Graph(B, nclass, embedding):
+    adjMatrix = B.copy()
+    x = np.transpose(np.nonzero(B))
+    for j in tqdm(range(len(x))):
+        dist = np.linalg.norm(embedding[x[j][0]] - embedding[x[j][1]])
+        B[x[j][0]][x[j][1]] = dist
 
-def CalculateSSPTree(idx_train, labels, nclass, B):
+    return adjMatrix, B
+
+def Calculate_Directed_Diffusion_Graph(adj, nclass, diffusions):
+    result = [None] * nclass
+    adjMatrix = adj.copy()
+    x = np.transpose(np.nonzero(adj))
+    for i in range(0, nclass):
+        diffusion_Vector = diffusions[i, :]
+        for j in tqdm(range(len(x))):
+            if diffusion_Vector[x[j][0]] >= diffusion_Vector[x[j][1]]:
+               tempValue = np.abs(diffusion_Vector[x[j][0]] - diffusion_Vector[x[j][1]])
+               if tempValue == 0:
+                   adj[x[j][0]][x[j][1]] = 0.00000000000000000000000000000001
+               else:
+                   adj[x[j][0]][x[j][1]] = tempValue
+            else:
+                adj[x[j][0]][x[j][1]] = 0
+        result[i] = adj.copy()
+        adj = adjMatrix.copy()
+    adj = adjMatrix.copy()
+    return adj, result
+
+def CalculateSSPTree(idx_train, labels, nclass, B,isdirected):
     labels_train = labels[idx_train]
     rank_result = [None] * nclass
     weight_result = [None] * nclass
@@ -85,9 +106,12 @@ def CalculateSSPTree(idx_train, labels, nclass, B):
         indexes = [idx_train[i] for i, x in enumerate(labels_train) if x == j]
         dict_l = {}
         dict_w = {}
+        if bool(isdirected) == True:
+            G = nx.from_numpy_matrix(np.matrix(B[j]), create_using=nx.DiGraph)
+        else:
+            G = nx.from_numpy_matrix(B[j])
 
-        G = nx.from_numpy_matrix(B[j])
-        for z in range(len(indexes)):
+        for z in tqdm(range(len(indexes))):
             length, path = nx.single_source_dijkstra(G, indexes[z], target=None, cutoff=None, weight='weight')
             level = {k: len(v) - 1 for k, v in path.items()}
             if len(dict_l) == 0:
@@ -103,12 +127,46 @@ def CalculateSSPTree(idx_train, labels, nclass, B):
                         if dict_l[k] == v:
                             if dict_w[k] > length[k]:
                                 dict_w[k] = length[k]
+                    else:
+                        dict_l[k] = v
+                        dict_w[k] = length[k]
 
                 # dict_l = {k: min(v, dict_l[k]) for k, v in level.items() if k in dict_l}
         rank_result[j] = dict_l
         weight_result[j] = dict_w
     return rank_result, weight_result
 
+def calculate_SSPTree_embedding(idx_train, labels, nclass, B):
+    labels_train = labels[idx_train]
+    rank_result = [None] * nclass
+    weight_result = [None] * nclass
+    G = nx.from_numpy_matrix(B)
+    for j in range(0, nclass):
+        indexes = [idx_train[i] for i, x in enumerate(labels_train) if x == j]
+        dict_l = {}
+        dict_w = {}
+        for z in tqdm(range(len(indexes))):
+            length, path = nx.single_source_dijkstra(G, indexes[z], target=None, cutoff=None, weight='weight')
+            level = {k: len(v) - 1 for k, v in path.items()}
+            if len(dict_l) == 0:
+                dict_l = level
+                dict_w = length
+            else:
+                for k, v in level.items():
+                    if k in dict_l:
+                        if dict_l[k] > v:
+                            dict_l[k] = v
+                            dict_w[k] = length[k]
+
+                        if dict_l[k] == v:
+                            if dict_w[k] > length[k]:
+                                dict_w[k] = length[k]
+                    else:
+                        dict_l[k] = v
+                        dict_w[k] = length[k]
+        rank_result[j] = dict_l
+        weight_result[j] = dict_w
+    return rank_result, weight_result
 
 def find_Min_rank(rank_dicts, weight_dicts):
     # G = nx.from_numpy_matrix(G)
@@ -132,7 +190,6 @@ def find_Min_rank(rank_dicts, weight_dicts):
 
     return result
 
-
 def Process_Result(result):
     # sorted(results.items(), key = lambda kv: (kv[1], kv[0]))
     rank_sorted = []
@@ -141,7 +198,6 @@ def Process_Result(result):
         rank_sorted.append(result[i][0])
         labels_sorted.append(result[i][1])
     return rank_sorted, labels_sorted
-
 
 def calculate_nonlinear_diffusion_treeBased(idx_train, labels, t, h, p, L, pinvD, n, nclass, G, nnlinear_function):
     preds = np.zeros((nclass, n))
@@ -161,7 +217,6 @@ def calculate_nonlinear_diffusion_treeBased(idx_train, labels, t, h, p, L, pinvD
         train_j_class = j
         preds[train_j_class, :] = np.maximum(preds[train_j_class, :], u)
     return preds
-
 
 def calculate_two_nonlinear_diffusions(idx_train, labels, t, h, p1, p2, LF, Ladj, sigma, pinvDF, pinvDadj, w, n, nclass,
                                        nnlinear_function):
@@ -192,7 +247,6 @@ def calculate_two_nonlinear_diffusions(idx_train, labels, t, h, p1, p2, LF, Ladj
         f = w * np.dot(pinvDF, uF) + (1 - w) * np.dot(pinvDadj, uadj)
         preds[train_j_class, :] = np.maximum(preds[train_j_class, :], f)
     return preds
-
 
 def choose_samples(preds, samples_no, remove_colums):
     # Choose samples such that we preserve class distribution.
