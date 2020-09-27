@@ -1,1 +1,1 @@
-# Non-Linear-Diffusion--Community-detection
+# Non-Linear--Community-detection
